@@ -1,0 +1,76 @@
+from postgres import Postgres
+from postgres.orm import Model
+
+import subprocess, os, time
+password = 'postgres'
+user = 'postgres' # set username values
+schema = 'public' # schema values here
+dbname = 'postgres'
+
+
+db = None 
+
+# ORM models Potential for future implementation
+# class Hotspot(Model):
+# 	typname = "hotspot"
+
+
+class db():
+	"Wrapper for postgres https://postgres-py.readthedocs.org/en/2.1.2/index.html"
+	def __init__(self,password=password, user=user, dbname=dbname):
+		self.schema = schema
+		self.dbname = dbname
+		self.host = 'postgres://%s:%s@localhost/%s' % (password, user, dbname)
+		self.path = os.path.abspath(os.path.join(os.path.dirname(__file__),".."))
+
+	def connect(self):
+		print 'Connecting to %s ...' % self.host
+		self.db_conn = Postgres(self.host)
+
+	def init(self):
+
+		print self.schema
+		
+		try:
+			# Enable PostGIS (includes raster)
+			self.db_conn.run("CREATE EXTENSION postgis")
+			# Enable Topology
+			self.db_conn.run("CREATE EXTENSION postgis_topology")
+			# fuzzy matching needed for Tiger
+			self.db_conn.run("CREATE EXTENSION fuzzystrmatch")
+			# Enable US Tiger Geocoder
+			self.db_conn.run("CREATE EXTENSION postgis_tiger_geocoder")
+		# catch all exception			
+		except: 
+			print 'PostGis is already installed'
+
+		query_hotspot = "CREATE TABLE IF NOT EXISTS %s.hotspot (gid serial, latitude numeric, longitude numeric, brightness numeric, scan numeric, track numeric, acq_date date, acq_time varchar(5), satellite varchar(1), confidence int4, version varchar(3), bright_t31 numeric, frp numeric, geom GEOGRAPHY(POINT,4326, 2), PRIMARY KEY(gid))" % self.schema
+		query_country = "CREATE TABLE IF NOT EXISTS %s.country (gid serial, fips varchar(2), iso2 varchar(2), iso3 varchar(3), un int4, name varchar(50), area int4, pop2005 int4, region int4, subregion int4, lon float8, lat float8, geom GEOGRAPHY(MULTIPOLYGON, 4326, 2), PRIMARY KEY(gid))" % self.schema
+		# create default tables
+		self.db_conn.run(query_hotspot)
+		self.db_conn.run(query_country)
+
+	def register(self):
+		''
+		#self.db_conn.register_model(Hotspot)
+	def parseShape(self):
+
+		path = "%s/global" % self.path
+		ts = int(time.time())
+		# here we run two transaction from the parsed files
+		for cmd in [{'db' : 'hotspot', 'parse' : 'Global_24h.shp', }, {'db' : 'country', 'parse': 'TM_WORLD_BORDERS-0.3.shp'}]:
+			run = '/usr/local/bin/shp2pgsql -a -D -s 4326  -W latin1 -i %s/%s %s.%s | /usr/bin/psql -d %s' % (path, cmd['parse'], self.schema, cmd['db'], self.dbname)
+			p = subprocess.Popen(run, stdout=subprocess.PIPE, shell=True)
+			output, err = p.communicate()
+			print  output
+
+
+def getDB():
+	return db()
+
+# #FOR DEV
+# dB = db()
+# dB.connect()
+# dB.init()
+# dB.register()
+# dB.parseShape()

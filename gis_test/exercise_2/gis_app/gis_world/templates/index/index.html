@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.4/leaflet.css" />
+    <script src="http://cdn.leafletjs.com/leaflet-0.7.4/leaflet.js"></script>
+    <style>
+    #map {
+        width: 100%;
+        height: 600px;
+    }
+    .popup {
+    	z-index: 100;
+    }
+    </style>
+</head>
+
+<body>
+    <h1>Global Hotspots!</h1>
+    <div id="map" class="map"></div>
+    <script>
+    
+    var map = L.map('map', {
+            center: [0, 0],
+            zoom: 2
+        });
+
+    L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token={accessToken}', {
+        attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="http://mapbox.com">Mapbox</a>',
+        maxZoom: 18,
+        id: 'guernica0131.nb6716fn',
+        accessToken: 'pk.eyJ1IjoiZ3Vlcm5pY2EwMTMxIiwiYSI6Ijg4NjJhZDNmYmQ1Y2Q3NDdjZTYyYWFmZGRiNWFmMjZiIn0.pNE8NXrsfYzx4LTz0Zcphw'
+    }).addTo(map);
+
+ /**
+ * parses and returns URI query parameters 
+ *
+ * altered for hash use case from http://stackoverflow.com/questions/979975/how-to-get-the-value-from-the-url-parameter
+ * 
+ * @param {string} param parm
+ * @param {bool?} asArray if true, returns an array instead of a scalar 
+ * @returns {Object|Array} 
+ */
+function getURIParameter(param, asArray) {
+    return document.location.hash.substring(2).split('&').reduce(function(p,c) {
+        var parts = c.split('=', 2).map(function(param) { return decodeURIComponent(param); });
+        if(parts.length == 0 || parts[0] != param) return (p instanceof Array) && !asArray ? null : p;
+        return asArray ? p.concat(parts.concat(true)[1]) : parts.concat(true)[1];
+    }, []);
+}
+
+    var details = function() {
+   		map.setView([ getURIParameter('latitude'), getURIParameter('longitude')], 13);
+   	};
+    
+
+
+    {%for hs in global_hotspots %}
+    
+    var marker = L.marker([ {{hs.latitude}}, {{hs.longitude}} ]).addTo(map);
+
+    marker.bindPopup("<div class='popup'><h3> <span class='soft'>Acquisition Date</span><br/>{{hs.acq_date}}<br/><span class='soft'>Acquisition Time</span><br/>{{hs.acq_time}}<br/> <span class='soft'>Satellite</span><br/>{{hs.satellite}}<br/><span class='soft'>Scan</span><br/>{{hs.scan}} </h3><p><a class='details' onclick='details()' href='#?latitude={{hs.latitude}}&longitude={{hs.longitude}}'>Detailed Information</p></div>");
+    
+    //marker.addTo(map);
+
+   		// console.log(strip.substring(18, strip.length - 1)); 
+   	{% endfor %}
+    </script>
+</body>
+
+</html>
